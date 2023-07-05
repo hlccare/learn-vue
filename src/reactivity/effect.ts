@@ -1,13 +1,33 @@
+import { extend } from "../shared";
+
 class ReactiveEffect {
   private _fn: any;
-  constructor(fn, public scheduler?) {
+  onStop?: () => void;
+  scheduler?: Function;
+  active = true;
+  deps: Set<ReactiveEffect>[] = [];
+  constructor(fn, scheduler) {
     this._fn = fn;
+    this.scheduler = scheduler;
   }
   run() {
     // 调用run，修改activeEffect指向，并调用fn
     activeEffect = this;
     return this._fn();
   }
+  stop() {
+    if (this.active) {
+      cleanupEffect(this);
+      if (this.onStop) this.onStop();
+      this.active = false;
+    }
+  }
+}
+
+function cleanupEffect(effect: ReactiveEffect) {
+  effect.deps.forEach((dep) => {
+    dep.delete(effect);
+  });
 }
 
 // targetMap，以目标对象为健，值为一个depsMap
@@ -25,7 +45,10 @@ export function track(target, key) {
     dep = new Set();
     depsMap.set(key, dep);
   }
+
+  if (!activeEffect) return;
   dep.add(activeEffect);
+  activeEffect.deps.push(dep);
 }
 
 export function trigger(target, key) {
@@ -44,9 +67,19 @@ export function trigger(target, key) {
 
 // 全局变量，用来标识当前执行的effect
 let activeEffect;
-export function effect(fn, options?: { scheduler? }) {
+export function effect(fn, options?: { scheduler?; onStop? }) {
   const _effect = new ReactiveEffect(fn, options?.scheduler);
+  // extend
+  extend(_effect, options);
+
   _effect.run();
 
-  return _effect.run.bind(_effect);
+  const runner: any = _effect.run.bind(_effect);
+  runner.effect = _effect;
+
+  return runner;
+}
+
+export function stop(runner) {
+  runner.effect.stop();
 }
