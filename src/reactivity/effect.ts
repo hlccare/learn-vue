@@ -64,18 +64,26 @@ export function track(target, key) {
     depsMap.set(key, dep);
   }
 
+  trackEffects(dep);
+}
+
+export function trackEffects(dep) {
   if (dep.has(activeEffect)) return; // 避免重复收集
   dep.add(activeEffect);
   activeEffect.deps.push(dep);
 }
 
-function isTracking() {
+export function isTracking() {
   return shouldTrack && activeEffect !== undefined;
 }
 
 export function trigger(target, key) {
   let depsMap = targetMap.get(target);
   let dep = depsMap.get(key);
+  triggerEffects(dep);
+}
+
+export function triggerEffects(dep) {
   // 遍历调用
   for (const effect of dep) {
     // 判断effect是否有scheduler，有则执行scheduler，不执行fn
