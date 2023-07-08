@@ -51,3 +51,21 @@ export function unRef(ref) {
   // 若为ref，则返回ref.value，否则返回值本身
   return isRef(ref) ? ref.value : ref;
 }
+
+export function proxyRefs(objectWithRefs) {
+  return new Proxy(objectWithRefs, {
+    // 调用getter时，所访问对象键值为ref类型，则返回.value，否则返回原来的值
+    get(target, key) {
+      return unRef(Reflect.get(target, key));
+    },
+    set(target, key, value) {
+      // 调用setter时，只需要特殊处理，所set对象键值为ref类型，且value非ref的情况，自动加上.value
+      // 若target[key] 和 value 均为ref，则直接赋值
+      if (isRef(target[key]) && isRef(value)) {
+        return (target[key].value = value);
+      } else {
+        return Reflect.set(target, key, value);
+      }
+    },
+  });
+}
