@@ -5,13 +5,13 @@ let activeEffect;
 // shouldTrack用于控制 fn 执行时，其中的响应式对象是否收集依赖，默认不收集
 let shouldTrack;
 
-class ReactiveEffect {
+export class ReactiveEffect {
   private _fn: any;
   onStop?: () => void;
   scheduler?: Function;
   active = true;
   deps: Set<ReactiveEffect>[] = [];
-  constructor(fn, scheduler) {
+  constructor(fn, scheduler?) {
     this._fn = fn;
     this.scheduler = scheduler;
   }
