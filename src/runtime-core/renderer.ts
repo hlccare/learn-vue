@@ -22,7 +22,7 @@ function processElement(vnode: any, container: any) {
 }
 
 function mountElement(vnode: any, container: any) {
-  const el = document.createElement(vnode.type);
+  const el = (vnode.el = document.createElement(vnode.type));
 
   // children处理:string | array
   const { children, props } = vnode;
@@ -50,15 +50,21 @@ function processComponent(vnode, container) {
   mountComponent(vnode, container);
 }
 
-function mountComponent(vnode, container) {
-  const instance = createComponentInstance(vnode);
+function mountComponent(initialVNode, container) {
+  const instance = createComponentInstance(initialVNode);
   setupComponent(instance);
-  setupRenderEffect(instance, container);
+  setupRenderEffect(instance, initialVNode, container);
 }
-function setupRenderEffect(instance, container) {
-  const subTree = instance.render();
+function setupRenderEffect(instance, initialVNode, container) {
+  const { proxy } = instance;
+  // 使用call，指定render函数的this为proxy
+  // subTree为组件根节点的虚拟节点
+  const subTree = instance.render.call(proxy);
 
   // vnode -> patch
   // vnode -> element -> mountElement
   patch(subTree, container);
+
+  // 此处element已mount完成，mountElement中将subTree的el赋值为根节点的dom元素
+  initialVNode.el = subTree.el;
 }
