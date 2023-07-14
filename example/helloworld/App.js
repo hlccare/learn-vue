@@ -12,6 +12,8 @@ export const App = {
       {
         id: "root",
         class: ["red", "hard"],
+        onClick: () => console.log("onclick"),
+        onMousedown: () => console.log("onmousedown"),
       },
       // string
       // "hi, mini-vue"
