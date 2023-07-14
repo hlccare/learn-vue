@@ -22,6 +22,12 @@ export const App = {
         h("div", {}, "hi, " + this.msg),
         h(Foo, {
           count: 1,
+          onAdd(a, b) {
+            console.log("onAdd", a, b);
+          },
+          onAddFoo() {
+            console.log("onAddFoo");
+          },
         }),
       ]
       // string
