@@ -9,8 +9,9 @@ export const Foo = {
     // 具名插槽
     // 1. 获取要渲染的元素
     // 2. 获取要渲染的位置
+    const age = 10;
     return h("div", {}, [
-      renderSlots(this.$slots, "header"),
+      renderSlots(this.$slots, "header", { age }),
       foo,
       renderSlots(this.$slots, "footer"),
     ]);

@@ -5,12 +5,15 @@ export const App = {
   name: "App",
   render() {
     const app = h("div", {}, "App");
-    // vnode | 数组
-    // const foo = h(Foo, {}, h("p", {}, "123"));
     const foo = h(
       Foo,
       {},
-      { header: h("p", {}, "header"), footer: h("p", {}, "footer") }
+      // slot使用函数
+      {
+        // 作用域插槽，函数调用传参，在实际渲染的组件中进行
+        header: ({ age }) => h("p", {}, "header" + age),
+        footer: () => h("p", {}, "footer"),
+      }
     );
 
     return h("div", {}, [app, foo]);
