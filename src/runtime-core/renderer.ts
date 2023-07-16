@@ -1,6 +1,7 @@
 import { isObject } from "../shared";
 import { ShapeFlags } from "../shared/shapeFlags";
 import { createComponentInstance, setupComponent } from "./component";
+import { Fragment } from "./vnode";
 
 export function render(vnode, container) {
   // patch
@@ -8,13 +9,26 @@ export function render(vnode, container) {
 }
 
 function patch(vnode, container) {
-  const { shapeFlag } = vnode;
-  // 使用与运算符来进行判断
-  if (shapeFlag & ShapeFlags.ELEMENT) {
-    processElement(vnode, container);
-  } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-    processComponent(vnode, container);
+  const { type, shapeFlag } = vnode;
+
+  // Fragment -> 只渲染 children
+  switch (type) {
+    case Fragment:
+      processFragment(vnode, container);
+      break;
+
+    default:
+      // 使用与运算符来进行判断
+      if (shapeFlag & ShapeFlags.ELEMENT) {
+        processElement(vnode, container);
+      } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+        processComponent(vnode, container);
+      }
   }
+}
+
+function processFragment(vnode: any, container: any) {
+  mountChildren(vnode, container);
 }
 
 function processElement(vnode: any, container: any) {
@@ -46,6 +60,7 @@ function mountElement(vnode: any, container: any) {
 }
 
 function mountChildren(vnode, container) {
+  // 遍历children，进行patch
   vnode.children.forEach((v) => {
     patch(v, container);
   });
