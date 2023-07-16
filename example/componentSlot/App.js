@@ -1,4 +1,4 @@
-import { h } from "../../lib/guide-mini-vue.esm.js";
+import { h, createTextVNode } from "../../lib/guide-mini-vue.esm.js";
 import { Foo } from "./Foo.js";
 
 export const App = {
@@ -11,7 +11,10 @@ export const App = {
       // slot使用函数
       {
         // 作用域插槽，函数调用传参，在实际渲染的组件中进行
-        header: ({ age }) => h("p", {}, "header" + age),
+        header: ({ age }) => [
+          h("p", {}, "header" + age),
+          createTextVNode("Text节点"),
+        ],
         footer: () => h("p", {}, "footer"),
       }
     );
