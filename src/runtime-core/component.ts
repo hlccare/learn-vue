@@ -34,11 +34,15 @@ function setupStatefulComponent(instance: any) {
   const { setup } = Component;
 
   if (setup) {
+    // 在组件进行setup时，将全局变量currentInstance设置为当前组件实例对象
+    setCurrentInstance(instance);
     // function | Object
     // props需要为shallowReadonly
     const setupResult = setup(shallowReadonly(instance.props), {
       emit: instance.emit,
     });
+    // 退出setup前，重置currentInstance
+    setCurrentInstance(null);
 
     handleSetupResult(instance, setupResult);
   }
@@ -56,4 +60,14 @@ function handleSetupResult(instance, setupResult: any) {
 function finishComponentSetup(instance: any) {
   const Component = instance.type;
   instance.render = Component.render;
+}
+
+let currentInstance = null;
+
+export function getCurrentInstance() {
+  return currentInstance;
+}
+
+export function setCurrentInstance(instance) {
+  currentInstance = instance;
 }
