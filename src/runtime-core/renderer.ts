@@ -6,7 +6,11 @@ import { Fragment, Text } from "./vnode";
 export function createRenderer(options) {
   // option控制renderer具体的渲染方法
   // 闭包
-  const { createElement, patchProp, insert } = options;
+  const {
+    createElement: hostCreateElement,
+    patchProp: hostPatchProp,
+    insert: hostInsert,
+  } = options;
   function render(vnode, container) {
     // patch
     patch(vnode, container, null);
@@ -50,7 +54,7 @@ export function createRenderer(options) {
 
   function mountElement(vnode: any, container: any, parentComponent) {
     // const el = (vnode.el = document.createElement(vnode.type));
-    const el = (vnode.el = createElement(vnode.type));
+    const el = (vnode.el = hostCreateElement(vnode.type));
 
     const { children, props, shapeFlag } = vnode;
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
@@ -63,10 +67,10 @@ export function createRenderer(options) {
     for (const key in props) {
       const val = props[key];
 
-      patchProp(el, key, val);
+      hostPatchProp(el, key, val);
     }
     // container.append(el);
-    insert(el, container);
+    hostInsert(el, container);
   }
 
   function mountChildren(vnode, container, parentComponent) {
