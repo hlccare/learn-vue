@@ -1,3 +1,4 @@
+import { effect } from "../reactivity/effect";
 import { ShapeFlags } from "../shared/shapeFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { createAppAPI } from "./createApp";
@@ -13,43 +14,60 @@ export function createRenderer(options) {
   } = options;
   function render(vnode, container) {
     // patch
-    patch(vnode, container, null);
+    patch(null, vnode, container, null);
   }
 
-  function patch(vnode, container, parentComponent) {
-    const { type, shapeFlag } = vnode;
+  // n1 -> 旧的虚拟节点
+  // n2 -> 新的虚拟节点
+  // n1 为 null 时，则为初始化
+  function patch(n1, n2, container, parentComponent) {
+    const { type, shapeFlag } = n2;
 
     // Fragment -> 只渲染 children
     switch (type) {
       case Fragment:
-        processFragment(vnode, container, parentComponent);
+        processFragment(n1, n2, container, parentComponent);
         break;
       case Text:
-        processText(vnode, container);
+        processText(n1, n2, container);
         break;
       default:
         // 使用与运算符来进行判断
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          processElement(vnode, container, parentComponent);
+          processElement(n1, n2, container, parentComponent);
         } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-          processComponent(vnode, container, parentComponent);
+          processComponent(n1, n2, container, parentComponent);
         }
     }
   }
 
-  function processText(vnode: any, container: any) {
+  function processText(n1, n2: any, container: any) {
     // children 为文本节点字符串
-    const { children } = vnode;
-    const textNode = (vnode.el = document.createTextNode(children));
+    const { children } = n2;
+    const textNode = (n2.el = document.createTextNode(children));
     container.append(textNode);
   }
 
-  function processFragment(vnode: any, container: any, parentComponent) {
-    mountChildren(vnode, container, parentComponent);
+  function processFragment(n1, n2: any, container: any, parentComponent) {
+    mountChildren(n2, container, parentComponent);
   }
 
-  function processElement(vnode: any, container: any, parentComponent) {
-    mountElement(vnode, container, parentComponent);
+  function processElement(n1, n2: any, container: any, parentComponent) {
+    if (!n1) {
+      mountElement(n2, container, parentComponent);
+    } else {
+      patchElement(n1, n2, container);
+    }
+  }
+
+  function patchElement(n1, n2, container) {
+    console.log("patchElement");
+    console.log("n1", n1);
+    console.log("n2", n2);
+
+    //TODO
+    // props
+    // children
   }
 
   function mountElement(vnode: any, container: any, parentComponent) {
@@ -76,12 +94,12 @@ export function createRenderer(options) {
   function mountChildren(vnode, container, parentComponent) {
     // 遍历children，进行patch
     vnode.children.forEach((v) => {
-      patch(v, container, parentComponent);
+      patch(null, v, container, parentComponent);
     });
   }
 
-  function processComponent(vnode, container, parentComponent) {
-    mountComponent(vnode, container, parentComponent);
+  function processComponent(n1, n2, container, parentComponent) {
+    mountComponent(n2, container, parentComponent);
   }
 
   function mountComponent(initialVNode, container, parentComponent) {
@@ -90,17 +108,34 @@ export function createRenderer(options) {
     setupRenderEffect(instance, initialVNode, container);
   }
   function setupRenderEffect(instance, initialVNode, container) {
-    const { proxy } = instance;
-    // 使用call，指定render函数的this为proxy
-    // subTree为组件根节点的虚拟节点
-    const subTree = instance.render.call(proxy);
+    // 更新重点：使用effect进行依赖收集
+    effect(() => {
+      // 区分 初始化 与 更新
+      if (!instance.isMounted) {
+        console.log("init");
 
-    // vnode -> patch
-    // vnode -> element -> mountElement
-    patch(subTree, container, instance);
+        const { proxy } = instance;
+        // 使用call，指定render函数的this为proxy
+        // subTree为组件根节点的虚拟节点
+        const subTree = (instance.subTree = instance.render.call(proxy));
+        console.log(subTree);
 
-    // 此处element已mount完成，mountElement中将subTree的el赋值为根节点的dom元素
-    initialVNode.el = subTree.el;
+        // vnode -> patch
+        // vnode -> element -> mountElement
+        patch(null, subTree, container, instance);
+
+        // 此处element已mount完成，mountElement中将subTree的el赋值为根节点的dom元素
+        initialVNode.el = subTree.el;
+        instance.isMounted = true;
+      } else {
+        console.log("update");
+        const { proxy } = instance;
+        const subTree = instance.render.call(proxy);
+        const preSubTree = instance.subTree;
+        instance.subTree = subTree;
+        patch(preSubTree, subTree, container, instance);
+      }
+    });
   }
 
   return {
