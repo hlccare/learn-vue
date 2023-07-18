@@ -23,8 +23,25 @@ function insert(el, parent) {
   parent.append(el);
 }
 
+function remove(child) {
+  const parent = child.parentNode;
+  if (parent) {
+    parent.removeChild(child);
+  }
+}
+
+function setElementText(el, text) {
+  el.textContent = text;
+}
+
 // 创建实际的渲染器
-const renderer: any = createRenderer({ createElement, patchProp, insert });
+const renderer: any = createRenderer({
+  createElement,
+  patchProp,
+  insert,
+  remove,
+  setElementText,
+});
 
 // 导出实际渲染器的createApp函数
 export function createApp(...args) {
