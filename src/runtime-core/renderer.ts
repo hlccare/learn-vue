@@ -1,4 +1,5 @@
 import { effect } from "../reactivity/effect";
+import { EMPTY_OBJ } from "../shared";
 import { ShapeFlags } from "../shared/shapeFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { createAppAPI } from "./createApp";
@@ -67,7 +68,37 @@ export function createRenderer(options) {
 
     //TODO
     // props
+    const oldProps = n1.props || EMPTY_OBJ;
+    const newProps = n2.props || EMPTY_OBJ;
+
+    // 更新时，n2的el为空，需要赋值
+    const el = (n2.el = n1.el);
+    patchProps(el, oldProps, newProps);
+
     // children
+  }
+
+  function patchProps(el, oldProps, newProps) {
+    if (oldProps !== newProps) {
+      // 遍历新props的键
+      for (const key in newProps) {
+        const prevProp = oldProps[key];
+        const nextProp = newProps[key];
+
+        if (prevProp !== nextProp) {
+          hostPatchProp(el, key, prevProp, nextProp);
+        }
+      }
+    }
+    if (oldProps !== EMPTY_OBJ) {
+      // 便利旧props的键
+      for (const key in oldProps) {
+        if (!(key in newProps)) {
+          // key被删除（旧props中有，而新props中无）
+          hostPatchProp(el, key, oldProps[key], null);
+        }
+      }
+    }
   }
 
   function mountElement(vnode: any, container: any, parentComponent) {
@@ -85,7 +116,7 @@ export function createRenderer(options) {
     for (const key in props) {
       const val = props[key];
 
-      hostPatchProp(el, key, val);
+      hostPatchProp(el, key, null, val);
     }
     // container.append(el);
     hostInsert(el, container);
