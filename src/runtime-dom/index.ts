@@ -19,8 +19,9 @@ function patchProp(el, key, prevVal, nextVal) {
   }
 }
 
-function insert(el, parent) {
-  parent.append(el);
+function insert(child, parent, anchor) {
+  // insertBefore的第二个参数为null时，直接添加到最末尾
+  parent.insertBefore(child, anchor || null);
 }
 
 function remove(child) {
