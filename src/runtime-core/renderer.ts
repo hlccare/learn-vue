@@ -184,9 +184,53 @@ export function createRenderer(options) {
         i++;
       }
     } else {
-    }
+      // 中间对比
+      let s1 = i;
+      let s2 = i;
 
-    // 4. 老的比新的长， 删除老的
+      const toBePatched = e2 - s2 + 1;
+      let patched = 0;
+      const keyToNewIndexMap = new Map();
+      // 遍历新children中间部分，保存map，key =》index
+      for (let i = s2; i <= e2; i++) {
+        const nextChild = c2[i];
+        keyToNewIndexMap.set(nextChild.key, i);
+      }
+
+      // 遍历旧children中间部分
+      for (let i = s1; i <= e1; i++) {
+        const prevChild = c1[i];
+
+        if (patched >= toBePatched) {
+          // 已patch节点数达到新children中间节点数，则后续旧children节点直接删除
+          hostRemove(prevChild.el);
+          continue;
+        }
+
+        let newIndex;
+        if (prevChild.key !== null) {
+          // 旧节点有key，获取对应的新index
+          newIndex = keyToNewIndexMap.get(prevChild.key);
+        } else {
+          // 旧节点没key，遍历新children中间部分，将该节点与新节点比对，若相同，则取新节点index
+          for (let j = s2; j <= e2; j++) {
+            if (isSameVNodeType(prevChild, c2[j])) {
+              newIndex = j;
+              break;
+            }
+          }
+        }
+
+        if (newIndex === undefined) {
+          // 在新children中没找到，则删除
+          hostRemove(prevChild.el);
+        } else {
+          // 在新children中间部分找到，则进行下一步patch操作
+          patch(prevChild, c2[newIndex], container, parentComponent, null);
+          patched++;
+        }
+      }
+    }
   }
 
   function unmountChildren(children) {
