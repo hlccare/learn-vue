@@ -1,3 +1,4 @@
+import { isObject } from "./../shared/index";
 import { effect } from "../reactivity/effect";
 import { EMPTY_OBJ } from "../shared";
 import { ShapeFlags } from "../shared/shapeFlags";
@@ -190,7 +191,20 @@ export function createRenderer(options) {
 
       const toBePatched = e2 - s2 + 1;
       let patched = 0;
-      const keyToNewIndexMap = new Map();
+      const keyToNewIndexMap = new Map(); // 存放新children中间部分节点的映射，key =》 index
+
+      // 存放新children中间部分，各节点的旧index
+      // a b (c d e) f g
+      // a b (e c d) f g
+      // [4, 2, 3] => 整体加1 => [5, 3, 4] ==> 最长递增序列（index）=> [1, 2]（即 c 和 d）
+      const newIndexToOldIndexMap = new Array(toBePatched);
+      let moved = false; // 新children中间部分是否有旧children移动而来
+      let maxNewIndexSoFar = 0;
+
+      for (let i = 0; i < toBePatched; i++) {
+        newIndexToOldIndexMap[i] = 0;
+      }
+
       // 遍历新children中间部分，保存map，key =》index
       for (let i = s2; i <= e2; i++) {
         const nextChild = c2[i];
@@ -226,8 +240,44 @@ export function createRenderer(options) {
           hostRemove(prevChild.el);
         } else {
           // 在新children中间部分找到，则进行下一步patch操作
+
+          // newIndex一旦非递增，则说明出现了移动，修改moved标志
+          if (newIndex >= maxNewIndexSoFar) {
+            maxNewIndexSoFar = newIndex;
+          } else {
+            moved = true;
+          }
+
+          // newIndex为在整体中的index，需转换处理
+          newIndexToOldIndexMap[newIndex - s2] = i + 1; // i从0开始，但该map中0表示该新节点在旧children中间部分不存在，故+1避开
           patch(prevChild, c2[newIndex], container, parentComponent, null);
           patched++;
+        }
+      }
+
+      const increasingNewIndexSequence = moved
+        ? getSequence(newIndexToOldIndexMap)
+        : [];
+      // j用于获取序列中的值，即递增节点的index（从后往前）
+      let j = increasingNewIndexSequence.length - 1;
+      // 遍历新children中间部分（从后往前）
+      for (let i = toBePatched - 1; i >= 0; i--) {
+        const nextIndex = i + s2;
+        const nextChild = c2[nextIndex];
+        const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : null;
+
+        if (newIndexToOldIndexMap[i] === 0) {
+          // 新节点在旧children中未找到，走增加逻辑
+          patch(null, nextChild, container, parentComponent, anchor);
+        } else if (moved) {
+          // 移动逻辑
+          if (j < 0 || i !== increasingNewIndexSequence[j]) {
+            // 非递增序列中的节点，查到新children中下一个节点元素之前
+            hostInsert(nextChild.el, container, anchor);
+          } else {
+            // 是递增序列中的节点，则不处理
+            j--;
+          }
         }
       }
     }
@@ -334,4 +384,45 @@ export function createRenderer(options) {
   return {
     createApp: createAppAPI(render),
   };
+}
+
+function getSequence(arr: number[]): number[] {
+  const p = arr.slice();
+  const result = [0];
+  let i, j, u, v, c;
+  const len = arr.length;
+  for (i = 0; i < len; i++) {
+    const arrI = arr[i];
+    if (arrI !== 0) {
+      j = result[result.length - 1];
+      if (arr[j] < arrI) {
+        p[i] = j;
+        result.push(i);
+        continue;
+      }
+      u = 0;
+      v = result.length - 1;
+      while (u < v) {
+        c = (u + v) >> 1;
+        if (arr[result[c]] < arrI) {
+          u = c + 1;
+        } else {
+          v = c;
+        }
+      }
+      if (arrI < arr[result[u]]) {
+        if (u > 0) {
+          p[i] = result[u - 1];
+        }
+        result[u] = i;
+      }
+    }
+  }
+  u = result.length;
+  v = result[u - 1];
+  while (u-- > 0) {
+    result[u] = v;
+    v = p[v];
+  }
+  return result;
 }
