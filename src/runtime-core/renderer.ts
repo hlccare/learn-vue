@@ -5,6 +5,7 @@ import { ShapeFlags } from "../shared/shapeFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { createAppAPI } from "./createApp";
 import { Fragment, Text } from "./vnode";
+import { shouldUpdateComponent } from "./componentUpdateUtils";
 
 export function createRenderer(options) {
   // option控制renderer具体的渲染方法
@@ -342,17 +343,35 @@ export function createRenderer(options) {
   }
 
   function processComponent(n1, n2, container, parentComponent, anchor) {
-    mountComponent(n2, container, parentComponent, anchor);
+    if (!n1) {
+      mountComponent(n2, container, parentComponent, anchor);
+    } else {
+      updateComponent(n1, n2);
+    }
+  }
+
+  function updateComponent(n1, n2) {
+    const instance = (n2.component = n1.component);
+    if (shouldUpdateComponent(n1, n2)) {
+      instance.next = n2;
+      instance.update();
+    } else {
+      n2.el = n1.el;
+      instance.vnode = n2;
+    }
   }
 
   function mountComponent(initialVNode, container, parentComponent, anchor) {
-    const instance = createComponentInstance(initialVNode, parentComponent);
+    const instance = (initialVNode.component = createComponentInstance(
+      initialVNode,
+      parentComponent
+    ));
     setupComponent(instance);
     setupRenderEffect(instance, initialVNode, container, anchor);
   }
   function setupRenderEffect(instance, initialVNode, container, anchor) {
     // 更新重点：使用effect进行依赖收集
-    effect(() => {
+    instance.update = effect(() => {
       // 区分 初始化 与 更新
       if (!instance.isMounted) {
         console.log("init");
@@ -372,6 +391,12 @@ export function createRenderer(options) {
         instance.isMounted = true;
       } else {
         console.log("update");
+
+        const { next, vnode } = instance;
+        if (next) {
+          next.el = vnode.el;
+          updateComponentPreRender(instance, next);
+        }
         const { proxy } = instance;
         const subTree = instance.render.call(proxy);
         const preSubTree = instance.subTree;
@@ -384,6 +409,13 @@ export function createRenderer(options) {
   return {
     createApp: createAppAPI(render),
   };
+}
+
+function updateComponentPreRender(instance, nextVNode) {
+  instance.props = nextVNode.props;
+  instance.next = null;
+
+  instance.vnode = nextVNode;
 }
 
 function getSequence(arr: number[]): number[] {

@@ -7,8 +7,9 @@ import { initSlots } from "./componentSlots";
 
 export function createComponentInstance(vnode, parent) {
   const component = {
-    vnode,
+    vnode, //当前的虚拟节点
     type: vnode.type,
+    next: null, // 下次要更新的虚拟节点
     setupState: [],
     props: {},
     slots: {},
