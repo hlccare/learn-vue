@@ -7,15 +7,13 @@ const enum TagType {
 
 export function baseParse(content: string) {
   const context = createParserContext(content);
-  return createRoot(parseChildren(context, ""));
+  return createRoot(parseChildren(context, []));
 }
 
-function parseChildren(context, parentTag) {
+function parseChildren(context, ancestors) {
   const nodes: any = [];
 
-  while (!isEnd(context, parentTag)) {
-    console.log(context.source);
-
+  while (!isEnd(context, ancestors)) {
     let node;
     const s = context.source;
     if (s.startsWith("{{")) {
@@ -24,10 +22,11 @@ function parseChildren(context, parentTag) {
     } else if (s[0] === "<") {
       // element
       if (/[a-z]/i.test(s[1])) {
-        node = parseElement(context);
+        node = parseElement(context, ancestors);
       }
     }
 
+    // 文本
     if (!node) {
       node = parseText(context);
     }
@@ -38,23 +37,32 @@ function parseChildren(context, parentTag) {
   return nodes;
 }
 
-function isEnd(context, parentTag) {
+// 判断字符处理是否已经结束
+function isEnd(context, ancestors) {
   const s = context.source;
   // 2. 遇到结束标签时候
-  if (parentTag && s.startsWith(`</${parentTag}>`)) {
-    return true;
+  if (s.startsWith("</")) {
+    for (let i = ancestors.length; i > 0; i--) {
+      const tag = ancestors[i].tag;
+      if (startsWithEndTagOpen(s, tag)) {
+        return true;
+      }
+    }
   }
   // 1. source有值的时候
   return !context.source;
 }
 
 function parseText(context) {
+  // 文本结束范围
   let endIndex = context.source.length;
+  // 文本中需要识别 element 和 插值
   let endTokens = ["<", "{{"];
 
+  // 遍历endTokens数组
   for (let i = 0; i < endTokens.length; i++) {
     const index = context.source.indexOf(endTokens[i]);
-    // 尽量取小的index，靠左
+    // 若存在，尽量取小的index，靠左
     if (index !== -1 && endIndex > index) {
       endIndex = index;
     }
@@ -62,14 +70,13 @@ function parseText(context) {
 
   const content = parseTextData(context, endIndex);
 
-  console.log("content", content);
-
   return {
     type: NodeTypes.TEXT,
     content,
   };
 }
 
+// 处理context中的纯文本
 function parseTextData(context: any, length) {
   const content = context.source.slice(0, length);
   advanceBy(context, length);
@@ -77,12 +84,28 @@ function parseTextData(context: any, length) {
   return content;
 }
 
-function parseElement(context) {
+function parseElement(context, ancestors) {
   const element: any = parseTag(context, TagType.Start);
-  element.children = parseChildren(context, element.tag);
-  parseTag(context, TagType.End);
+  ancestors.push(element);
+  element.children = parseChildren(context, ancestors);
+  ancestors.pop();
+  // 处理结束标签部分 </div?
+  // 在source中截取，与element.tag进行比较，相同则处理，不同则报错
+  if (startsWithEndTagOpen(context.source, element.tag)) {
+    parseTag(context, TagType.End);
+  } else {
+    throw new Error(`缺少结束标签：${element.tag}`);
+  }
 
   return element;
+}
+
+// 判断是否为关闭标签，且是否匹配
+function startsWithEndTagOpen(source, tag) {
+  return (
+    source.startsWith("</") &&
+    source.slice(2, 2 + tag.length).toLowerCase() === tag.toLowerCase()
+  );
 }
 
 function parseTag(context: any, type: TagType) {
@@ -110,6 +133,7 @@ function parseInterpolation(context) {
   // 删去{{
   advanceBy(context, openDelimiter.length);
 
+  // 提取插值内容
   const rawContentLength = closeIndex - openDelimiter.length;
   const rawContent = parseTextData(context, rawContentLength);
   const content = rawContent.trim();
