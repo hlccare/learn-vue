@@ -12,18 +12,42 @@ export function baseParse(content: string) {
 
 function parseChildren(context) {
   const nodes: any = [];
+
   let node;
   const s = context.source;
   if (s.startsWith("{{")) {
     // 插值
     node = parseInterpolation(context);
   } else if (s[0] === "<") {
+    // element
     if (/[a-z]/i.test(s[1])) {
       node = parseElement(context);
     }
   }
+
+  if (!node) {
+    node = parseText(context);
+  }
+
   nodes.push(node);
+
   return nodes;
+}
+
+function parseText(context) {
+  const content = parseTextData(context, context.source.length);
+
+  return {
+    type: NodeTypes.TEXT,
+    content,
+  };
+}
+
+function parseTextData(context: any, length) {
+  const content = context.source.slice(0, length);
+  advanceBy(context, length);
+
+  return content;
 }
 
 function parseElement(context) {
@@ -59,7 +83,7 @@ function parseInterpolation(context) {
   advanceBy(context, openDelimiter.length);
 
   const rawContentLength = closeIndex - openDelimiter.length;
-  const rawContent = context.source.slice(0, rawContentLength);
+  const rawContent = parseTextData(context, rawContentLength);
   const content = rawContent.trim();
 
   // 删除 str}}
