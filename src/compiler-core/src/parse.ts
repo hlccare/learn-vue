@@ -7,35 +7,62 @@ const enum TagType {
 
 export function baseParse(content: string) {
   const context = createParserContext(content);
-  return createRoot(parseChildren(context));
+  return createRoot(parseChildren(context, ""));
 }
 
-function parseChildren(context) {
+function parseChildren(context, parentTag) {
   const nodes: any = [];
 
-  let node;
-  const s = context.source;
-  if (s.startsWith("{{")) {
-    // 插值
-    node = parseInterpolation(context);
-  } else if (s[0] === "<") {
-    // element
-    if (/[a-z]/i.test(s[1])) {
-      node = parseElement(context);
+  while (!isEnd(context, parentTag)) {
+    console.log(context.source);
+
+    let node;
+    const s = context.source;
+    if (s.startsWith("{{")) {
+      // 插值
+      node = parseInterpolation(context);
+    } else if (s[0] === "<") {
+      // element
+      if (/[a-z]/i.test(s[1])) {
+        node = parseElement(context);
+      }
     }
-  }
 
-  if (!node) {
-    node = parseText(context);
-  }
+    if (!node) {
+      node = parseText(context);
+    }
 
-  nodes.push(node);
+    nodes.push(node);
+  }
 
   return nodes;
 }
 
+function isEnd(context, parentTag) {
+  const s = context.source;
+  // 2. 遇到结束标签时候
+  if (parentTag && s.startsWith(`</${parentTag}>`)) {
+    return true;
+  }
+  // 1. source有值的时候
+  return !context.source;
+}
+
 function parseText(context) {
-  const content = parseTextData(context, context.source.length);
+  let endIndex = context.source.length;
+  let endTokens = ["<", "{{"];
+
+  for (let i = 0; i < endTokens.length; i++) {
+    const index = context.source.indexOf(endTokens[i]);
+    // 尽量取小的index，靠左
+    if (index !== -1 && endIndex > index) {
+      endIndex = index;
+    }
+  }
+
+  const content = parseTextData(context, endIndex);
+
+  console.log("content", content);
 
   return {
     type: NodeTypes.TEXT,
@@ -51,7 +78,8 @@ function parseTextData(context: any, length) {
 }
 
 function parseElement(context) {
-  const element = parseTag(context, TagType.Start);
+  const element: any = parseTag(context, TagType.Start);
+  element.children = parseChildren(context, element.tag);
   parseTag(context, TagType.End);
 
   return element;
@@ -87,7 +115,7 @@ function parseInterpolation(context) {
   const content = rawContent.trim();
 
   // 删除 str}}
-  advanceBy(context, rawContentLength + closeDelimiter.length);
+  advanceBy(context, closeDelimiter.length);
 
   return {
     type: NodeTypes.INTERPOLATION,
