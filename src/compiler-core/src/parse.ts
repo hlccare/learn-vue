@@ -42,7 +42,7 @@ function isEnd(context, ancestors) {
   const s = context.source;
   // 2. 遇到结束标签时候
   if (s.startsWith("</")) {
-    for (let i = ancestors.length; i > 0; i--) {
+    for (let i = ancestors.length - 1; i >= 0; i--) {
       const tag = ancestors[i].tag;
       if (startsWithEndTagOpen(s, tag)) {
         return true;

@@ -78,5 +78,5 @@ describe("parse", () => {
     });
   });
 
-  test.only("should throw error when lack end tag", () => {});
+  test("should throw error when lack end tag", () => {});
 });
