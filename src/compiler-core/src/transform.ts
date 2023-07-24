@@ -13,7 +13,12 @@ export function transform(root, options = {}) {
 }
 
 function createRootCodegen(root) {
-  root.codegenNode = root.children[0];
+  const child = root.children[0];
+  if (child.type === NodeTypes.ELEMENT) {
+    root.codegenNode = child.codegenNode;
+  } else {
+    root.codegenNode = root.children[0];
+  }
 }
 
 function createTransformContext(root, options) {
@@ -31,10 +36,13 @@ function createTransformContext(root, options) {
 // 递归，深度优先搜索
 export function traverseNode(node, context) {
   const nodeTransforms = context.nodeTransforms;
+  const exitFns: any = [];
   // 对每个节点调用插件进行处理
   for (let i = 0; i < nodeTransforms.length; i++) {
     const transform = nodeTransforms[i];
-    transform(node);
+    // 返回闭包处理函数
+    const onExit = transform(node, context);
+    if (onExit) exitFns.push(onExit);
   }
 
   // 遍历过程中处理不同节点
@@ -48,6 +56,11 @@ export function traverseNode(node, context) {
       traverseChildren(node, context);
     default:
       break;
+  }
+
+  let i = exitFns.length;
+  while (i--) {
+    exitFns[i]();
   }
 }
 
