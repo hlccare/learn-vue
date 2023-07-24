@@ -3,4 +3,5 @@ export const enum NodeTypes {
   SIMPLE_EXPRESSION,
   ELEMENT, // DOM元素
   TEXT, // 文本
+  ROOT, // 根节点
 }

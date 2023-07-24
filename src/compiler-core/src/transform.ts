@@ -1,3 +1,6 @@
+import { NodeTypes } from "./ast";
+import { TO_DISPLAY_STRING } from "./runtimeHelpers";
+
 export function transform(root, options = {}) {
   const context = createTransformContext(root, options);
 
@@ -5,6 +8,8 @@ export function transform(root, options = {}) {
   traverseNode(root, context);
 
   createRootCodegen(root);
+
+  root.helpers = [...context.helpers.keys()];
 }
 
 function createRootCodegen(root) {
@@ -15,6 +20,10 @@ function createTransformContext(root, options) {
   const context = {
     root,
     nodeTransforms: options.nodeTransforms || [],
+    helpers: new Map(),
+    helper(key) {
+      context.helpers.set(key, 1);
+    },
   };
   return context;
 }
@@ -27,7 +36,19 @@ export function traverseNode(node, context) {
     const transform = nodeTransforms[i];
     transform(node);
   }
-  traverseChildren(node, context);
+
+  // 遍历过程中处理不同节点
+  switch (node.type) {
+    case NodeTypes.INTERPOLATION:
+      context.helper(TO_DISPLAY_STRING);
+      break;
+    // 有children的情况只有root和element
+    case NodeTypes.ROOT:
+    case NodeTypes.ELEMENT:
+      traverseChildren(node, context);
+    default:
+      break;
+  }
 }
 
 function traverseChildren(node: any, context: any) {
