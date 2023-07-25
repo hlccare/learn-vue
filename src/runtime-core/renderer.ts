@@ -381,7 +381,10 @@ export function createRenderer(options) {
           const { proxy } = instance;
           // 使用call，指定render函数的this为proxy
           // subTree为组件根节点的虚拟节点
-          const subTree = (instance.subTree = instance.render.call(proxy));
+          const subTree = (instance.subTree = instance.render.call(
+            proxy,
+            proxy
+          ));
           console.log(subTree);
 
           // vnode -> patch
@@ -400,7 +403,7 @@ export function createRenderer(options) {
             updateComponentPreRender(instance, next);
           }
           const { proxy } = instance;
-          const subTree = instance.render.call(proxy);
+          const subTree = instance.render.call(proxy, proxy);
           const preSubTree = instance.subTree;
           instance.subTree = subTree;
           patch(preSubTree, subTree, container, instance, anchor);
